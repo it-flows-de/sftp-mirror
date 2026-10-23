@@ -1,0 +1,97 @@
+#===============================================================================
+# sftp-mirror.config - configuration for sftp-mirror.sh
+# Setup:  cp sftp-mirror.config.example sftp-mirror.config, edit with vi, chmod 660.
+# Syntax: sourced by bash (it is code): KEY="value", no spaces around the "=".
+#         ${SCRIPT_DIR} and ${SCRIPT_NAME} can be used in values.
+# No secrets here: credentials belong in the secrets file (SECRETS_FILE below).
+#===============================================================================
+
+# Config format version. Must match the script, otherwise it aborts (exit code 3).
+# Do not change by hand; adjust it only after following the release notes.
+CONFIG_VERSION="1"
+
+#===============================================================================
+# 1. REQUIRED - set these for every project
+#===============================================================================
+
+# Host name of the SFTP server.
+# Example: sftp.example.com
+REMOTE_HOST="sftp.example.com"
+
+# Directory on the server that is mounted and mirrored.
+# Example: /htdocs (use "/" for the whole account)
+REMOTE_PATH="/"
+
+# Local directory where the remote side is mounted. Must exist and be empty.
+# The script never creates it: a missing parent mount (e.g. an unmounted backup
+# disk) would otherwise fill the wrong disk.
+# Example: /mnt/backup/remote
+MOUNT_POINT="/mnt/backup/remote"
+
+# Local directory that holds the mirror (destination of rsync). Must exist.
+# Files that no longer exist on the remote side are deleted here.
+# Example: /mnt/backup/mirror
+MIRROR_DIR="/mnt/backup/mirror"
+
+# Plausibility check before mirroring: this directory, relative to the remote
+# side, must exist. Without a working source, the delete option would empty the
+# mirror. Choose a directory that always exists on the server.
+# If empty, the check only verifies that the source is not empty.
+# Example: htdocs/wp-content
+SANITY_CHECK_PATH="htdocs"
+
+#===============================================================================
+# 2. OPTIONAL - empty means "not used"
+#===============================================================================
+
+# Path to an SSH private key for key authentication.
+# Leave empty to use the password from the secrets file instead.
+# Example: /root/.secrets/sftp-mirror.key
+SSH_KEY_FILE=""
+
+# Paths that are not mirrored, as a bash array. Patterns are relative to the
+# source root; a leading "/" anchors them there.
+# Example: RSYNC_EXCLUDES=("/.cache" "/logs")
+RSYNC_EXCLUDES=()
+
+#===============================================================================
+# 3. DEFAULTS - change only in individual cases
+# The values below are the defaults defined in the script rules.
+#===============================================================================
+
+# SSH/SFTP port of the server. Format: number. Default: 22
+REMOTE_PORT="22"
+
+# Options passed to sshfs (-o), comma separated. Do not add "password_stdin",
+# "IdentityFile" or "IdentitiesOnly": the script sets them depending on the
+# authentication method.
+# "ro" mounts the remote side read-only, so the source can never be changed.
+# Default: ro,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,StrictHostKeyChecking=accept-new
+SSHFS_OPTIONS="ro,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,StrictHostKeyChecking=accept-new"
+
+# Time limit in seconds for the plausibility check. Format: number. Default: 60
+SANITY_TIMEOUT="60"
+
+# Maximum number of files rsync may delete in one run. If more would be
+# deleted, rsync stops and the run fails (exit code 7). Format: number. Default: 500
+MAX_DELETE="500"
+
+# rsync I/O timeout in seconds. Format: number. Default: 300
+RSYNC_TIMEOUT="300"
+
+# --- Paths: defaults from the script rules, override only if a system needs
+# --- something different.
+
+# Log file. Rotation is done by logrotate (/etc/logrotate.d/sftp-mirror).
+# The directory must exist and be writable for the executing user.
+LOG_FILE="/var/log/${SCRIPT_NAME}/${SCRIPT_NAME}.log"
+
+# Marker file, written only after a fully successful run (not on --dry-run).
+# Monitored by n-sight: an alarm is raised when the file gets too old.
+MARKER_FILE="${SCRIPT_DIR}/last-successful"
+
+# Lock file to prevent parallel runs.
+LOCK_FILE="/run/lock/${SCRIPT_NAME}.lock"
+
+# Secrets file (chmod 600, directory chmod 700), contains credentials only.
+SECRETS_FILE="/root/.secrets/${SCRIPT_NAME}.secrets"
